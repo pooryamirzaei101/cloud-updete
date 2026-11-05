@@ -9,14 +9,19 @@ export async function uploadAdminMedia(file:File,kind:"audio"|"video"|"document"
   try{
     const parts:{partNumber:number;etag:string}[]=[];
     const total=Math.ceil(file.size/session.partSize);
-    for(let index=0;index<total;index++){
-      progress(`Uploading part ${index+1} of ${total}… Keep this page open.`);
+    let next=0,completed=0;
+    async function worker(){while(next<total){
+      const index=next++;
       const piece=file.slice(index*session.partSize,Math.min(file.size,(index+1)*session.partSize));
       const result=await fetch(`/api/admin/media-uploads?${params}&partNumber=${index+1}`,{method:"PUT",body:piece});
       const data=await result.json() as {error?:string;partNumber?:number;etag?:string};
       if(!result.ok||!data.etag)throw new Error(data.error||`Part ${index+1} failed.`);
       parts.push({partNumber:index+1,etag:data.etag});
-    }
+      completed++;
+      progress(`Uploaded ${completed} of ${total} parts… Keep this page open.`);
+    }}
+    await Promise.all(Array.from({length:Math.min(3,total)},()=>worker()));
+    parts.sort((a,b)=>a.partNumber-b.partNumber);
     progress("Finishing upload…");
     const complete=await fetch(`/api/admin/media-uploads?${params}&action=complete`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({parts})});
     const done=await complete.json() as {error?:string;key?:string};
