@@ -1,0 +1,5 @@
+const ts=require('typescript'),vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+let statement;
+const moduleBox={exports:{}};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('lib/admin-auth-users.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:moduleBox,exports:moduleBox.exports,require:name=>name==='@/db'?{getDb:()=>({execute:async query=>{statement=query}})}:require(name),Date});
+(async()=>{await moduleBox.exports.syncAuthUsersForAdmin();const {PgDialect}=require('drizzle-orm/pg-core'),compiled=new PgDialect().sqlToQuery(statement);assert.match(compiled.sql,/insert into learner_profiles/i);assert.match(compiled.sql,/from auth\.users/i);assert.match(compiled.sql,/pending_email/i);assert.match(compiled.sql,/on conflict \(user_id\) do update/i);assert.match(compiled.sql,/is distinct from/i);console.log('PASS: Supabase Auth accounts are mirrored into the administrator user list without replacing pending users.');})().catch(error=>{console.error(error);process.exit(1)});
