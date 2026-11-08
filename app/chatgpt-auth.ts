@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -28,7 +29,11 @@ export async function getSupabaseServerClient() {
   }});
 }
 
-export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
+// Wrapped in React's per-request cache: the layout, header, onboarding gate,
+// isAdmin() and the page itself all ask for the user during one render, and
+// getUser() is a network round trip to Supabase Auth. With the cache they share
+// a single call per request. Authorization still uses the strict getUser() check.
+export const getChatGPTUser = cache(async (): Promise<ChatGPTUser | null> => {
   const client = await getSupabaseServerClient();
   if (!client) return null;
   const {data,error} = await client.auth.getUser();
@@ -42,7 +47,7 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
     email: user.email,
     fullName,
   };
-}
+});
 
 export async function requireChatGPTUser(
   returnTo: string,

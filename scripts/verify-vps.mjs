@@ -17,7 +17,7 @@ async function check(name, task) {
 
 await check("Supabase Postgres", async () => {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is missing");
-  const sql = postgres(process.env.DATABASE_URL, { max: 1, connect_timeout: 10, ssl: process.env.DATABASE_SSL === "disable" ? false : "require" });
+  const sql = postgres(process.env.DATABASE_URL, { max: 1, connect_timeout: 10, ssl: ["false", "disable", "disabled"].includes(process.env.DATABASE_SSL?.trim().toLowerCase() ?? "") ? false : "require" });
   try {
     const [row] = await sql`select current_database() as database, now() as checked_at`;
     return `connected to ${row.database}`;

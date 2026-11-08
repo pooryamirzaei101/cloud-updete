@@ -1,0 +1,31 @@
+# Simplest production setup: Caddy gets and renews the HTTPS certificate by
+# itself, enables HTTP/2 and HTTP/3, and compresses responses. Use this OR the
+# Nginx config, not both.
+#
+# 1. Replace learn.example.com with your domain (its DNS A record must already
+#    point at this server).
+# 2. Copy to /etc/caddy/Caddyfile and run: sudo systemctl reload caddy
+
+learn.example.com {
+    encode zstd gzip
+
+    # Uploads of lesson media go through the app; match the Nginx limit.
+    request_body {
+        max_size 110MB
+    }
+
+    # Hashed build files never change under the same name.
+    @static path /_next/static/*
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    # Service worker must be re-checked on every visit.
+    header /sw.js Cache-Control "no-cache"
+
+    reverse_proxy 127.0.0.1:3000 {
+        # Send video/audio bytes to the browser immediately (fast seeking).
+        flush_interval -1
+    }
+
+    # There is deliberately no file_server for the media directory. Every media
+    # request must pass through the application authorization routes.
+}

@@ -36,7 +36,8 @@ export function getDb(): any {
     max: Number(process.env.DATABASE_POOL_SIZE || 8),
     idle_timeout: 20,
     connect_timeout: 15,
-    ssl: process.env.DATABASE_SSL === "false" ? false : "require",
+    // "false", "disable" and "disabled" all turn TLS off (same values as scripts/verify-vps.mjs).
+    ssl: ["false", "disable", "disabled"].includes(process.env.DATABASE_SSL?.trim().toLowerCase() ?? "") ? false : "require",
   });
   database = d1Compatible(drizzle(client, { schema }));
   return database;
